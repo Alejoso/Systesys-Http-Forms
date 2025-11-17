@@ -196,13 +196,6 @@ with st.container(border=True):
 		st.warning(
 			"No se recibió una POSTURL válida en la URL (?POSTURL=http(s)://...). El envío estará deshabilitado.")
 
-# Controls for dynamic equipment rows
-ctrl_cols = st.columns([1, 1, 8])
-with ctrl_cols[0]:
-	st.button("➕ Agregar ítem", on_click=add_equipment_row, use_container_width=True)
-with ctrl_cols[1]:
-	st.button("➖ Quitar ítem", on_click=remove_equipment_row, use_container_width=True)
-
 with st.form("service_form"):
 	st.subheader("1) Descripción del servicio técnico realizado *")
 	descripcion = st.text_area(
@@ -210,6 +203,13 @@ with st.form("service_form"):
 	)
 
 	st.subheader("2) Equipos y materiales instalados *")
+	# Controls for dynamic equipment rows
+	ctrl_cols = st.columns([1, 1, 8])
+	with ctrl_cols[0]:
+		st.button("➕ Agregar ítem", on_click=add_equipment_row, use_container_width=True)
+	with ctrl_cols[1]:
+		st.button("➖ Quitar ítem", on_click=remove_equipment_row, use_container_width=True)
+	
 	equipos = render_equipment_rows(st.session_state.equip_count)
 
 	st.subheader("3) Trabajo en alturas")
