@@ -197,7 +197,7 @@ with st.container(border=True):
 			"No se recibió una POSTURL válida en la URL (?POSTURL=http(s)://...). El envío estará deshabilitado.")
 
 # Controls for dynamic equipment rows
-ctrl_cols = st.columns([1, 1, 8])
+ctrl_cols = st.columns([1, 1, 4])
 with ctrl_cols[0]:
 	st.button("➕ Agregar material", on_click=add_equipment_row, use_container_width=True)
 with ctrl_cols[1]:
