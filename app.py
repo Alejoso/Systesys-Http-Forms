@@ -204,12 +204,12 @@ with ctrl_cols[1]:
 	st.button("➖ Quitar ítem", on_click=remove_equipment_row, use_container_width=True)
 
 with st.form("service_form"):
-	st.subheader("1) Descripción del servicio técnico realizado")
+	st.subheader("1) Descripción del servicio técnico realizado *")
 	descripcion = st.text_area(
 		"Descripción", placeholder="Detalle las actividades realizadas...", height=140
 	)
 
-	st.subheader("2) Equipos y materiales instalados")
+	st.subheader("2) Equipos y materiales instalados *")
 	equipos = render_equipment_rows(st.session_state.equip_count)
 
 	st.subheader("3) Trabajo en alturas")
@@ -226,7 +226,7 @@ with st.form("service_form"):
 	st.subheader("5) Actividades pendientes / Novedades")
 	actividades = st.text_area("Actividades/Novedades", height=120)
 
-	st.subheader("6) Evidencias fotográficas")
+	st.subheader("6) Evidencias fotográficas *")
 	ev_cols = st.columns(3)
 	imgs_antes = ev_cols[0].file_uploader(
 		"Antes", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
@@ -238,7 +238,7 @@ with st.form("service_form"):
 		"Después", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
 	)
 
-	st.subheader("7) Verificación de envío")
+	st.subheader("7) Verificación de envío *")
 	entered_code = st.text_input("Ingrese el código de verificación de 6 dígitos", max_chars=6)
 	entered_digits = re.sub(r"\D", "", entered_code)
 	codes_match = entered_digits == verification_code
