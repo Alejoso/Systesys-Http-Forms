@@ -269,13 +269,23 @@ if submitted:
 	errors = []
 	if not descripcion.strip():
 		errors.append("La descripción del servicio es obligatoria.")
+	if not observaciones.strip():
+		errors.append("Por favor agregue observaciones. Si no tiene, escriba 'Ninguna'.")
+	if not actividades.strip():
+		errors.append("Por favor agregue actividades pendientes o novedades. Si no tiene, escriba 'Ninguna'.")
+	if not imgs_antes:
+		errors.append("Falta al menos una imagen en la sección **Antes**.")
+	if not imgs_durante:
+		errors.append("Falta al menos una imagen en la sección **Durante**.")
+	if not imgs_despues:
+		errors.append("Falta al menos una imagen en la sección **Después**.")
 	if not is_http_url(meta.get("POSTURL")):
 		errors.append("POSTURL inválida o ausente.")
 	if not codes_match:
 		errors.append("El código de verificación no es válido.")
 
 	if errors:
-		st.error("\n".join(errors))
+		st.error("\n".join([f"- {e}" for e in errors]))
 	else:
 		with st.spinner("Enviando reporte..."):
 			payload = make_payload(
