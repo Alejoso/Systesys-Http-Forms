@@ -9,7 +9,6 @@ import requests
 import streamlit as st
 from verification import six_digit_code_from_fields
 
-
 # ---------- Utils ----------
 def get_query_params() -> Dict[str, str]:
 	"""Return query params as a simple dict[str,str].
@@ -101,7 +100,7 @@ def render_equipment_rows() -> List[Dict[str, Any]]:
             )
 
             remove_clicked = st.form_submit_button(
-                f"🗑 Quitar este material #{idx}"
+                f"Quitar este material"
             )
             if remove_clicked:
                 remove_equipment_row(row_id)
@@ -176,6 +175,7 @@ def to_files_payload(
 
 # ---------- UI ----------
 st.set_page_config(page_title="Orden de Servicio - Reporte Técnico", layout="wide")
+
 ensure_session_defaults()
 
 qp = get_query_params()
@@ -231,7 +231,7 @@ with st.form("service_form"):
 	col_a, col_b = st.columns([1, 3])
 	requiere_alturas = col_a.checkbox("¿Se realizó trabajo en alturas?", value=False)
 	detalles_alturas = col_b.text_input(
-		"Detalles (EPP utilizado, permisos, andamios, etc.)",
+		"Detalles (Equipo de protección personal, permisos, andamios, etc.)",
 		placeholder="Opcional",
 	)
 
@@ -269,6 +269,13 @@ if submitted:
 	errors = []
 	if not descripcion.strip():
 		errors.append("La descripción del servicio es obligatoria.")
+	for idx, eq in enumerate(equipos, start=1):
+		if (
+			not eq["nombre"].strip() or
+			eq["cantidad"] is None or eq["cantidad"] <= 0 or
+			not eq["unidad"].strip()
+    	):
+			errors.append(f"Falta información en el material #{idx}")
 	if not observaciones.strip():
 		errors.append("Por favor agregue observaciones. Si no tiene, escriba 'Ninguna'.")
 	if not actividades.strip():
