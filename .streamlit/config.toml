@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#F3DF0A"                # Syntesys yellow
+backgroundColor = "#0A0A0A"             # Very dark background
+secondaryBackgroundColor = "#1A1A1A"    # Slightly lighter gray
+textColor = "#FAFAFA"                   # White text
+font = "sans serif"

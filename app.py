@@ -58,51 +58,68 @@ def now_iso() -> str:
 
 
 def ensure_session_defaults():
-	if "equip_count" not in st.session_state:
-		st.session_state.equip_count = 1
+    if "equip_rows" not in st.session_state:
+        st.session_state.equip_rows = [0]
 
 
 def add_equipment_row():
-	st.session_state.equip_count += 1
+    rows = st.session_state.equip_rows
+    new_id = (max(rows) + 1) if rows else 0
+    rows.append(new_id)
 
 
-def remove_equipment_row():
-	if st.session_state.equip_count > 1:
-		st.session_state.equip_count -= 1
+def remove_equipment_row(row_id: int):
+    rows = st.session_state.equip_rows
+    if len(rows) > 1 and row_id in rows:
+        rows.remove(row_id)
 
+def render_equipment_rows() -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    rows = st.session_state.equip_rows
+    total = len(rows)
 
-def render_equipment_rows(count: int) -> List[Dict[str, Any]]:
-	items: List[Dict[str, Any]] = []
-	for i in range(count):
-		with st.expander(f"Equipo/Material #{i+1}", expanded=count <= 3):
-			cols1 = st.columns([3, 1, 1])
-			nombre = cols1[0].text_input("Nombre", key=f"eq_nombre_{i}")
-			cantidad = cols1[1].number_input(
-				"Cantidad", min_value=0.0, step=1.0, format="%g", key=f"eq_cantidad_{i}"
-			)
-			unidad = cols1[2].text_input("Unidad", key=f"eq_unidad_{i}")
+    for idx, row_id in enumerate(rows, start=1):
+        with st.expander(f"Equipo/Material #{idx}", expanded=total <= 3):
+            cols1 = st.columns([3, 1, 1])
+            nombre = cols1[0].text_input("Nombre", key=f"eq_nombre_{row_id}")
+            cantidad = cols1[1].number_input(
+                "Cantidad",
+                min_value=0.0,
+                step=1.0,
+                format="%g",
+                key=f"eq_cantidad_{row_id}",
+            )
+            unidad = cols1[2].text_input("Unidad", key=f"eq_unidad_{row_id}")
 
-			cols2 = st.columns(3)
-			marca = cols2[0].text_input("Marca", key=f"eq_marca_{i}")
-			modelo = cols2[1].text_input("Modelo", key=f"eq_modelo_{i}")
-			serial = cols2[2].text_input("Serial", key=f"eq_serial_{i}")
+            cols2 = st.columns(3)
+            marca = cols2[0].text_input("Marca", key=f"eq_marca_{row_id}")
+            modelo = cols2[1].text_input("Modelo", key=f"eq_modelo_{row_id}")
+            serial = cols2[2].text_input("Serial", key=f"eq_serial_{row_id}")
 
-			observaciones = st.text_area(
-				"Observaciones", key=f"eq_observaciones_{i}", height=80
-			)
+            observaciones = st.text_area(
+                "Observaciones", key=f"eq_observaciones_{row_id}", height=80
+            )
 
-			items.append(
-				{
-					"nombre": nombre.strip(),
-					"cantidad": cantidad,
-					"unidad": unidad.strip(),
-					"marca": marca.strip(),
-					"modelo": modelo.strip(),
-					"serial": serial.strip(),
-					"observaciones": observaciones.strip(),
-				}
-			)
-	return items
+            remove_clicked = st.form_submit_button(
+                f"🗑 Quitar este material #{idx}"
+            )
+            if remove_clicked:
+                remove_equipment_row(row_id)
+                st.experimental_rerun()
+
+            items.append(
+                {
+                    "nombre": nombre.strip(),
+                    "cantidad": cantidad,
+                    "unidad": unidad.strip(),
+                    "marca": marca.strip(),
+                    "modelo": modelo.strip(),
+                    "serial": serial.strip(),
+                    "observaciones": observaciones.strip(),
+                }
+            )
+
+    return items
 
 
 def make_payload(
@@ -181,27 +198,17 @@ verification_code = six_digit_code_from_fields(
 st.title("Reporte de Servicio Técnico")
 
 with st.container(border=True):
-	st.subheader("Datos del Cliente (desde la URL)")
+	st.subheader("Datos del Cliente")
 	c1, c2, c3, c4 = st.columns(4)
 	c1.write(f"ID: {meta.get('id') or '—'}")
 	c2.write(f"Ciudad: {meta.get('ciudad') or '—'}")
 	c3.write(f"NIT: {meta.get('nit') or '—'}")
 	c4.write(f"Empresa: {meta.get('nombreEmpresa') or '—'}")
-	st.write(f"POSTURL: {meta.get('POSTURL') or '—'}")
+
 	# Admin/testing: toggle to show the generated code
-	with st.popover("Ver código (prueba)"):
-		st.caption("Código de verificación generado determinísticamente a partir de los parámetros de la URL.")
-		st.code(verification_code, language="text")
 	if not is_http_url(meta.get("POSTURL")):
 		st.warning(
 			"No se recibió una POSTURL válida en la URL (?POSTURL=http(s)://...). El envío estará deshabilitado.")
-
-# Controls for dynamic equipment rows
-ctrl_cols = st.columns([1, 1, 4])
-with ctrl_cols[0]:
-	st.button("➕ Agregar material", on_click=add_equipment_row, use_container_width=True)
-with ctrl_cols[1]:
-	st.button("➖ Quitar material", on_click=remove_equipment_row, use_container_width=True)
 
 with st.form("service_form"):
 	st.subheader("1) Descripción del servicio técnico realizado *")
@@ -210,8 +217,16 @@ with st.form("service_form"):
 	)
 
 	st.subheader("2) Equipos y materiales instalados *")
-	equipos = render_equipment_rows(st.session_state.equip_count)
+	equipos = render_equipment_rows()
 
+	add_clicked = st.form_submit_button(
+		"➕ Agregar material",
+		use_container_width=True,
+	)
+	if add_clicked:
+		add_equipment_row()
+		st.experimental_rerun()
+	
 	st.subheader("3) Trabajo en alturas")
 	col_a, col_b = st.columns([1, 3])
 	requiere_alturas = col_a.checkbox("¿Se realizó trabajo en alturas?", value=False)
