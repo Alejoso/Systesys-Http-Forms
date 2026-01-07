@@ -77,6 +77,14 @@ def remove_equipment_row(row_id: int):
         rows.remove(row_id)
 
 
+def safe_rerun():
+    """Compat: Streamlit nuevo tiene st.rerun(), viejo tiene st.experimental_rerun()."""
+    try:
+        st.rerun()
+    except Exception:
+        st.experimental_rerun()
+
+
 def render_equipment_rows() -> List[Dict[str, Any]]:
     """Renderiza los bloques de equipos/materiales y devuelve la lista de ítems."""
     items: List[Dict[str, Any]] = []
@@ -105,10 +113,15 @@ def render_equipment_rows() -> List[Dict[str, Any]]:
                 "Observaciones", key=f"eq_obs_{row_id}", height=80
             )
 
-            remove_clicked = st.form_submit_button(f"{row_id} Quitar este material")
+            # ✅ Antes era form_submit_button (solo funciona dentro de st.form).
+            remove_clicked = st.button(
+                f"{row_id} Quitar este material",
+                key=f"rm_{row_id}",
+                use_container_width=False,
+            )
             if remove_clicked:
                 remove_equipment_row(row_id)
-                st.experimental_rerun()
+                safe_rerun()
 
             items.append(
                 {
@@ -161,7 +174,9 @@ def to_files_payload(
 
     # Parte JSON
     json_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    files.append(("payload", ("payload.json", io.BytesIO(json_bytes), "application/json")))
+    files.append(
+        ("payload", ("payload.json", io.BytesIO(json_bytes), "application/json"))
+    )
 
     def add_images(field: str, imgs: List[Any]):
         for f in imgs or []:
@@ -235,80 +250,78 @@ with st.container(border=True):
         )
 
 # ---------------------------------------------------------
-# Formulario principal
+# Formulario principal (SIN st.form para que sea interactivo)
 # ---------------------------------------------------------
-with st.form("service_form"):
-    st.subheader("1) Descripción del servicio técnico realizado *")
-    descripcion = st.text_area(
-        "Descripción",
-        placeholder="Detalle las actividades realizadas...",
-        height=140,
-    )
+st.subheader("1) Descripción del servicio técnico realizado *")
+descripcion = st.text_area(
+    "Descripción",
+    placeholder="Detalle las actividades realizadas...",
+    height=140,
+)
 
-    st.subheader("2) Equipos y materiales instalados *")
-    equipos = render_equipment_rows()
+st.subheader("2) Equipos y materiales instalados *")
+equipos = render_equipment_rows()
 
-    add_clicked = st.form_submit_button("➕ Agregar material", use_container_width=True)
-    if add_clicked:
-        add_equipment_row()
-        st.experimental_rerun()
+add_clicked = st.button("➕ Agregar material", use_container_width=True, key="add_material")
+if add_clicked:
+    add_equipment_row()
+    safe_rerun()
 
-    # -----------------------------------------------------
-    # 3) Trabajo en alturas (mobile-friendly + required)
-    # -----------------------------------------------------
-    st.subheader("3) Trabajo en alturas *")
+# -----------------------------------------------------
+# 3) Trabajo en alturas (habilita/deshabilita en vivo)
+# -----------------------------------------------------
+st.subheader("3) Trabajo en alturas *")
 
-    alturas_choice = st.selectbox(
-        "¿Se realizó trabajo en alturas?",
-        options=["Seleccione…", "Sí", "No"],
-        index=0,
-    )
+alturas_choice = st.selectbox(
+    "¿Se realizó trabajo en alturas?",
+    options=["Seleccione…", "Sí", "No"],
+    index=0,
+    key="alturas_choice",
+)
 
-    requiere_alturas = (alturas_choice == "Sí")
+requiere_alturas = (alturas_choice == "Sí")
 
-    detalles_alturas = st.text_input(
-        "Detalles (EPP, permisos, andamios, etc.)",
-        placeholder="Opcional (recomendado si selecciona Sí)",
-        disabled=not requiere_alturas,
-    )
+detalles_alturas = st.text_input(
+    "Detalles (EPP, permisos, andamios, etc.)",
+    placeholder="Opcional (recomendado si selecciona Sí)",
+    disabled=not requiere_alturas,
+    key="detalles_alturas",
+)
 
-    st.subheader("4) Observaciones generales *")
-    observaciones = st.text_area("Observaciones", height=120)
+st.subheader("4) Observaciones generales *")
+observaciones = st.text_area("Observaciones", height=120)
 
-    st.subheader("5) Actividades pendientes / Novedades *")
-    actividades = st.text_area("Actividades/Novedades", height=120)
+st.subheader("5) Actividades pendientes / Novedades *")
+actividades = st.text_area("Actividades/Novedades", height=120)
 
-    st.subheader("6) Evidencias fotográficas *")
-    ev_cols = st.columns(3)
-    imgs_antes = ev_cols[0].file_uploader(
-        "Antes", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
-    )
-    imgs_durante = ev_cols[1].file_uploader(
-        "Durante", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
-    )
-    imgs_despues = ev_cols[2].file_uploader(
-        "Después", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
-    )
+st.subheader("6) Evidencias fotográficas *")
+ev_cols = st.columns(3)
+imgs_antes = ev_cols[0].file_uploader(
+    "Antes", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
+)
+imgs_durante = ev_cols[1].file_uploader(
+    "Durante", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
+)
+imgs_despues = ev_cols[2].file_uploader(
+    "Después", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
+)
 
-    st.subheader("7) Verificación de envío *")
-    entered_code = st.text_input(
-        "Ingrese el código de verificación de 6 dígitos", max_chars=6
-    )
-    entered_digits = re.sub(r"\D", "", entered_code)
+st.subheader("7) Verificación de envío *")
+entered_code = st.text_input("Ingrese el código de verificación de 6 dígitos", max_chars=6)
+entered_digits = re.sub(r"\D", "", entered_code)
 
-    submitted = st.form_submit_button(
-        "Enviar reporte",
-        use_container_width=True,
-        disabled=(not is_http_url(meta.get("POSTURL"))),
-    )
+submitted = st.button(
+    "Enviar reporte",
+    use_container_width=True,
+    disabled=(not is_http_url(meta.get("POSTURL"))),
+    key="send_report",
+)
 
 # ---------------------------------------------------------
 # Envío del formulario
 # ---------------------------------------------------------
 if submitted:
     post_url = meta.get("POSTURL") or ""
-
-    st.info(f"DEBUG POSTURL usada: {post_url}")
 
     errors: List[str] = []
 
@@ -359,7 +372,7 @@ if submitted:
                 equipos=[e for e in equipos if any(str(v).strip() for v in e.values())],
                 trabajo_alturas={
                     "requiere": bool(requiere_alturas),
-                    "detalles": detalles_alturas.strip(),
+                    "detalles": (detalles_alturas or "").strip(),
                 },
                 observaciones=observaciones.strip(),
                 actividades=actividades.strip(),
@@ -372,13 +385,12 @@ if submitted:
                     post_url,
                     files=files,
                     timeout=60,
-                    verify=False,  # pon True cuando tengas certificado válido
+                    verify=False,
                     allow_redirects=False,
                 )
 
-                st.success(f"Envío completado. Código: {resp.status_code}")
-                with st.expander("Respuesta del servidor"):
-                    st.code(resp.text or "<sin contenido>", language="json")
+                st.success(f"Envío completado. ¡Muchas gracias por su trabajo!")
+                
             except Exception as ex:
                 st.error(f"Error al enviar el reporte: {ex}")
 
