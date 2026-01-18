@@ -113,7 +113,6 @@ def render_equipment_rows() -> List[Dict[str, Any]]:
                 "Observaciones", key=f"eq_obs_{row_id}", height=80
             )
 
-            # ✅ Antes era form_submit_button (solo funciona dentro de st.form).
             remove_clicked = st.button(
                 f"{row_id} Quitar este material",
                 key=f"rm_{row_id}",
@@ -259,7 +258,8 @@ descripcion = st.text_area(
     height=140,
 )
 
-st.subheader("2) Equipos y materiales instalados *")
+st.subheader("2) Equipos y materiales instalados (Opcional)")
+st.caption("Si no se usó materiales, dejar en blanco.")
 equipos = render_equipment_rows()
 
 add_clicked = st.button("➕ Agregar material", use_container_width=True, key="add_material")
@@ -327,15 +327,6 @@ if submitted:
 
     if not descripcion.strip():
         errors.append("La descripción del servicio es obligatoria.")
-
-    for idx, eq in enumerate(equipos, start=1):
-        if (
-            not eq["nombre"].strip()
-            or eq["cantidad"] is None
-            or eq["cantidad"] <= 0
-            or not eq["unidad"].strip()
-        ):
-            errors.append(f"Falta información en el material #{idx}.")
 
     # Required selection
     if alturas_choice not in ("Sí", "No"):
