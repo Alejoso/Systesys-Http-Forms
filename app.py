@@ -1,7 +1,7 @@
 import io
 import json
 import mimetypes
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Any, Dict, List, Optional
 import re
 from urllib.parse import unquote
@@ -144,6 +144,8 @@ def make_payload(
     trabajo_alturas: Dict[str, Any],
     observaciones: str,
     actividades: str,
+    contacto: Dict[str, str],
+    horas_visita: Dict[str, str],
 ) -> Dict[str, Any]:
     """Construye el JSON que se manda a n8n dentro del multipart."""
     return {
@@ -154,11 +156,16 @@ def make_payload(
             "nombreEmpresa": meta.get("nombreEmpresa") or "",
             "submittedAt": now_iso(),
         },
+        "contactoEnSitio": {
+            "nombre": (contacto.get("nombre") or "").strip(),
+            "cargo": (contacto.get("cargo") or "").strip(),
+        },
         "descripcionServicio": descripcion,
         "equiposMaterialesInstalados": equipos,
         "trabajoEnAlturas": trabajo_alturas,
         "observacionesGenerales": observaciones,
         "actividadesPendientesONovedades": actividades,
+        "horasVisita": horas_visita,
     }
 
 
@@ -249,16 +256,32 @@ with st.container(border=True):
         )
 
 # ---------------------------------------------------------
+# Contacto en sitio
+# ---------------------------------------------------------
+st.subheader("1) Contacto en sitio *")
+cA, cB = st.columns(2)
+contacto_nombre = cA.text_input(
+    "Nombre del contacto en sitio",
+    placeholder="Ej: Juan Pérez",
+    key="contacto_nombre",
+)
+contacto_cargo = cB.text_input(
+    "Cargo del contacto",
+    placeholder="Ej: Coordinador de mantenimiento",
+    key="contacto_cargo",
+)
+
+# ---------------------------------------------------------
 # Formulario principal (SIN st.form para que sea interactivo)
 # ---------------------------------------------------------
-st.subheader("1) Descripción del servicio técnico realizado *")
+st.subheader("2) Descripción del servicio técnico realizado *")
 descripcion = st.text_area(
     "Descripción",
     placeholder="Detalle las actividades realizadas...",
     height=140,
 )
 
-st.subheader("2) Equipos y materiales instalados (Opcional)")
+st.subheader("3) Equipos y materiales instalados (Opcional)")
 st.caption("Si no se usó materiales, dejar en blanco.")
 equipos = render_equipment_rows()
 
@@ -268,9 +291,9 @@ if add_clicked:
     safe_rerun()
 
 # -----------------------------------------------------
-# 3) Trabajo en alturas (habilita/deshabilita en vivo)
+# Trabajo en alturas (habilita/deshabilita en vivo)
 # -----------------------------------------------------
-st.subheader("3) Trabajo en alturas *")
+st.subheader("4) Trabajo en alturas *")
 
 alturas_choice = st.selectbox(
     "¿Se realizó trabajo en alturas?",
@@ -288,13 +311,13 @@ detalles_alturas = st.text_input(
     key="detalles_alturas",
 )
 
-st.subheader("4) Observaciones generales *")
+st.subheader("5) Observaciones generales *")
 observaciones = st.text_area("Observaciones", height=120)
 
-st.subheader("5) Actividades pendientes / Novedades *")
+st.subheader("6) Actividades pendientes / Novedades *")
 actividades = st.text_area("Actividades/Novedades", height=120)
 
-st.subheader("6) Evidencias fotográficas *")
+st.subheader("7) Evidencias fotográficas *")
 ev_cols = st.columns(3)
 imgs_antes = ev_cols[0].file_uploader(
     "Antes", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
@@ -306,7 +329,13 @@ imgs_despues = ev_cols[2].file_uploader(
     "Después", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True
 )
 
-st.subheader("7) Verificación de envío *")
+st.subheader("8) Horas de la visita *")
+
+h1, h2 = st.columns(2)
+hora_inicio = h1.time_input("Hora de inicio", key="hora_inicio")
+hora_fin = h2.time_input("Hora de fin", key="hora_fin")
+
+st.subheader("9) Verificación de envío *")
 entered_code = st.text_input("Ingrese el código de verificación de 6 dígitos", max_chars=6)
 entered_digits = re.sub(r"\D", "", entered_code)
 
@@ -324,6 +353,11 @@ if submitted:
     post_url = meta.get("POSTURL") or ""
 
     errors: List[str] = []
+
+    if not contacto_nombre.strip():
+        errors.append("El **nombre del contacto en sitio** es obligatorio.")
+    if not contacto_cargo.strip():
+        errors.append("El **cargo del contacto** es obligatorio.")
 
     if not descripcion.strip():
         errors.append("La descripción del servicio es obligatoria.")
@@ -348,6 +382,13 @@ if submitted:
     if not imgs_despues:
         errors.append("Falta al menos una imagen en la sección **Después**.")
 
+    today = date.today()
+    dt_inicio = datetime.combine(today, hora_inicio)
+    dt_fin = datetime.combine(today, hora_fin)
+
+    if dt_fin <= dt_inicio:
+        errors.append("La **hora de fin** debe ser mayor que la **hora de inicio**.")
+
     if entered_digits != verification_code:
         errors.append("El código de verificación no es válido.")
     if not is_http_url(post_url):
@@ -367,7 +408,17 @@ if submitted:
                 },
                 observaciones=observaciones.strip(),
                 actividades=actividades.strip(),
+                contacto={
+                    "nombre": contacto_nombre.strip(),
+                    "cargo": contacto_cargo.strip(),
+                },
+                horas_visita={
+                    "inicio": dt_inicio.isoformat(),
+                    "fin": dt_fin.isoformat(),
+                    "zonaHoraria": "local",
+                },
             )
+
 
             try:
                 files = to_files_payload(payload, imgs_antes, imgs_durante, imgs_despues)
@@ -380,8 +431,8 @@ if submitted:
                     allow_redirects=False,
                 )
 
-                st.success(f"Envío completado. ¡Muchas gracias por su trabajo!")
-                
+                st.success("Envío completado. ¡Muchas gracias por su trabajo!")
+
             except Exception as ex:
                 st.error(f"Error al enviar el reporte: {ex}")
 
@@ -397,6 +448,8 @@ with st.sidebar:
         trabajo_alturas={"requiere": False, "detalles": ""},
         observaciones="",
         actividades="",
+        contacto={"nombre": "", "cargo": ""},
+        horas_visita={"inicio": "", "fin": "", "zonaHoraria": ""},
     )
     st.download_button(
         label="Descargar plantilla JSON",
